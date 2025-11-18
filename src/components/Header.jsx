@@ -21,7 +21,7 @@ const Header = ({ user, onLogout }) => {
 
   return (
     <header className="bg-black text-white sticky top-0 z-50 shadow-lg">
-      <div className="w-full px-4 lg:px-10 py-4">
+      <div className="w-full px-4 lg:px-10 py-2">
         <div className="flex items-center justify-between">
           {/* Logo */}
           <div
