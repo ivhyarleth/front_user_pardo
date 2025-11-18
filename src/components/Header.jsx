@@ -1,23 +1,21 @@
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { useState } from 'react';
 
 const Header = ({ user, onLogout }) => {
   const { getCartCount, setIsCartOpen } = useCart();
   const navigate = useNavigate();
-  const [orderActive, setOrderActive] = useState(false); // para MI ORDEN
 
   const handleCartClick = () => {
     setIsCartOpen(true);
-    setOrderActive(true); // deja MI ORDEN en color activo
   };
 
   const handleLogoClick = () => {
     navigate('/home');
   };
 
+  // Tamaño de los textos del menú
   const navBase =
-    'font-spartan font-semibold text-3xl transition-colors';
+    'font-spartan font-semibold text-2xl transition-colors';
 
   return (
     <header className="bg-black text-white sticky top-0 z-50 shadow-lg">
@@ -36,7 +34,7 @@ const Header = ({ user, onLogout }) => {
               />
             </div>
             <div className="hidden md:block">
-              <h1 className="font-spartan font-bold text-3xl tracking-wide">
+              <h1 className="font-spartan font-bold text-2xl tracking-wide">
                 PARDOS CHICKEN
               </h1>
             </div>
@@ -70,13 +68,10 @@ const Header = ({ user, onLogout }) => {
               NUESTRA CARTA
             </NavLink>
 
+            {/* MI ORDEN ahora se comporta igual que los otros (solo hover) */}
             <button
               onClick={handleCartClick}
-              className={`${navBase} ${
-                orderActive
-                  ? 'text-pardos-yellow'
-                  : 'text-white hover:text-pardos-yellow'
-              }`}
+              className={`${navBase} text-white hover:text-pardos-yellow`}
             >
               MI ORDEN
             </button>
@@ -112,12 +107,12 @@ const Header = ({ user, onLogout }) => {
             {user ? (
               // Saludo arriba, botón abajo
               <div className="flex flex-col items-end space-y-2">
-                <span className="hidden md:inline-block font-lato text-4xl">
+                <span className="hidden md:inline-block font-lato text-2xl">
                   Hola, <span className="font-bold">{user.nombre}</span>
                 </span>
                 <button
                   onClick={onLogout}
-                  className="bg-pardos-purple hover:bg-pardos-brown text-white px-6 py-1 rounded-full font-spartan font-semibold text-2xl transition-colors"
+                  className="bg-pardos-purple hover:bg-pardos-brown text-white px-6 py-1 rounded-full font-spartan font-semibold text-xl transition-colors"
                 >
                   Cerrar sesión
                 </button>

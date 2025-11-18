@@ -13,9 +13,6 @@ const Carta = () => {
 
   return (
     <div className="carta-page">
-      <div className="carta-header">
-        <h1 className="carta-title">Nuestra Carta</h1>
-      </div>
 
       <div className="carta-container">
         <div className="categories-sidebar">

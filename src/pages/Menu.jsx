@@ -16,15 +16,6 @@ const Menu = () => {
 
   return (
     <div className="min-h-screen bg-pardos-cream">
-      {/* Hero Banner */}
-      <div className="bg-pardos-brown py-12">
-        <div className="container mx-auto px-4">
-          <h1 className="font-spartan font-black text-white text-6xl md:text-5xl text-center">
-            NUESTRA CARTA
-          </h1>
-        </div>
-      </div>
-
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Sidebar - Categories */}

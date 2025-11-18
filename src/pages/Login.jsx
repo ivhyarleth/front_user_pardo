@@ -37,7 +37,7 @@ const Login = ({ onLogin }) => {
 
         {/* Right Side - Login Form */}
         <div className="bg-pardos-purple rounded-[2.7rem] p-12 shadow-2xl">
-          <h2 className="text-white font-spartan font-bold text-5xl mb-10 text-center">
+          <h2 className="text-white font-spartan font-bold text-4xl mb-10 text-center">
             ¡Bienvenido de nuevo!
           </h2>
           
