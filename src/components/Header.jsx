@@ -1,17 +1,23 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { useState } from 'react';
 
 const Header = ({ user, onLogout }) => {
   const { getCartCount, setIsCartOpen } = useCart();
   const navigate = useNavigate();
+  const [orderActive, setOrderActive] = useState(false); // para MI ORDEN
 
   const handleCartClick = () => {
     setIsCartOpen(true);
+    setOrderActive(true); // deja MI ORDEN en color activo
   };
 
   const handleLogoClick = () => {
     navigate('/home');
   };
+
+  const navBase =
+    'font-spartan font-semibold text-3xl transition-colors';
 
   return (
     <header className="bg-black text-white sticky top-0 z-50 shadow-lg">
@@ -38,21 +44,39 @@ const Header = ({ user, onLogout }) => {
 
           {/* Navigation */}
           <nav className="hidden md:flex space-x-12">
-            <Link
+            <NavLink
               to="/home"
-              className="font-spartan font-semibold text-3xl hover:text-pardos-yellow transition-colors"
+              className={({ isActive }) =>
+                `${navBase} ${
+                  isActive
+                    ? 'text-pardos-yellow'
+                    : 'text-white hover:text-pardos-yellow'
+                }`
+              }
             >
               SEDE
-            </Link>
-            <Link
+            </NavLink>
+
+            <NavLink
               to="/menu"
-              className="font-spartan font-semibold text-3xl hover:text-pardos-yellow transition-colors"
+              className={({ isActive }) =>
+                `${navBase} ${
+                  isActive
+                    ? 'text-pardos-yellow'
+                    : 'text-white hover:text-pardos-yellow'
+                }`
+              }
             >
               NUESTRA CARTA
-            </Link>
+            </NavLink>
+
             <button
               onClick={handleCartClick}
-              className="font-spartan font-semibold text-3xl hover:text-pardos-yellow transition-colors"
+              className={`${navBase} ${
+                orderActive
+                  ? 'text-pardos-yellow'
+                  : 'text-white hover:text-pardos-yellow'
+              }`}
             >
               MI ORDEN
             </button>

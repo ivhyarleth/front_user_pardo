@@ -5,13 +5,13 @@
 }
 
 .orden-container {
-  max-width: 1200px;
+  max-width: 1400px; /* antes 1200px → más ancho */
   margin: 0 auto;
 }
 
 .orden-title {
   font-family: var(--font-primary);
-  font-size: 42px;
+  font-size: 46px; /* antes 42px */
   font-weight: 800;
   color: var(--color-dark);
   margin-bottom: 40px;
@@ -21,23 +21,23 @@
 
 .orden-content {
   display: grid;
-  grid-template-columns: 1fr 400px;
+  grid-template-columns: 1.7fr 0.9fr; /* antes 1fr 400px → más espacio horizontal */
   gap: 40px;
 }
 
 .cart-items {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px; /* un poco más de separación */
 }
 
 .cart-item {
   background: white;
   border-radius: 16px;
-  padding: 20px;
+  padding: 24px; /* antes 20px */
   display: grid;
-  grid-template-columns: 100px 1fr auto auto;
-  gap: 20px;
+  grid-template-columns: 120px 1fr auto auto; /* antes 100px → más ancho */
+  gap: 24px;
   align-items: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: transform 0.3s ease;
@@ -49,8 +49,8 @@
 }
 
 .item-image {
-  width: 100px;
-  height: 100px;
+  width: 120px;  /* antes 100px */
+  height: 120px; /* antes 100px */
   object-fit: cover;
   border-radius: 12px;
 }
@@ -63,13 +63,13 @@
 
 .item-name {
   font-family: var(--font-primary);
-  font-size: 18px;
+  font-size: 22px; /* antes 18px */
   font-weight: 700;
   color: var(--color-dark);
 }
 
 .item-price {
-  font-size: 16px;
+  font-size: 20px; /* antes 16px */
   color: var(--color-primary);
   font-weight: 600;
 }
@@ -77,19 +77,19 @@
 .item-quantity {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   background-color: var(--color-light-cream);
-  padding: 8px 16px;
+  padding: 10px 20px;
   border-radius: 50px;
 }
 
 .qty-btn {
   background-color: var(--color-brown);
   color: white;
-  width: 32px;
-  height: 32px;
+  width: 36px;  /* un poco más grande */
+  height: 36px;
   border-radius: 50%;
-  font-size: 20px;
+  font-size: 22px; /* antes 20px */
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -104,16 +104,16 @@
 
 .qty-display {
   font-family: var(--font-primary);
-  font-size: 18px;
+  font-size: 22px; /* antes 18px */
   font-weight: 700;
-  min-width: 40px;
+  min-width: 48px;
   text-align: center;
 }
 
 .btn-remove {
   background: transparent;
   color: #999;
-  font-size: 24px;
+  font-size: 26px; /* antes 24px */
   padding: 8px;
   transition: all 0.3s ease;
 }
@@ -126,7 +126,7 @@
 .order-summary {
   background: white;
   border-radius: 16px;
-  padding: 30px;
+  padding: 32px; /* un poco más de respiro */
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   height: fit-content;
   position: sticky;
@@ -135,7 +135,7 @@
 
 .order-summary h3 {
   font-family: var(--font-primary);
-  font-size: 24px;
+  font-size: 28px; /* antes 24px */
   font-weight: 700;
   margin-bottom: 25px;
   padding-bottom: 15px;
@@ -145,14 +145,14 @@
 .summary-line {
   display: flex;
   justify-content: space-between;
-  font-size: 16px;
+  font-size: 20px; /* antes 16px */
   margin-bottom: 15px;
   color: #666;
 }
 
 .summary-line.total {
   font-family: var(--font-primary);
-  font-size: 24px;
+  font-size: 28px; /* antes 24px */
   font-weight: 800;
   color: var(--color-dark);
   margin-top: 25px;
@@ -163,8 +163,8 @@
 .btn-checkout {
   width: 100%;
   margin-top: 25px;
-  font-size: 18px;
-  padding: 16px;
+  font-size: 22px; /* antes 18px */
+  padding: 18px;  /* un poco más grande */
 }
 
 .empty-cart {
@@ -174,17 +174,18 @@
 
 .empty-cart h2 {
   font-family: var(--font-primary);
-  font-size: 36px;
+  font-size: 40px; /* antes 36px */
   color: var(--color-dark);
   margin-bottom: 20px;
 }
 
 .empty-cart p {
-  font-size: 18px;
+  font-size: 22px; /* antes 18px */
   color: #666;
   margin-bottom: 30px;
 }
 
+/* Responsivo */
 @media (max-width: 968px) {
   .orden-content {
     grid-template-columns: 1fr;
@@ -195,8 +196,13 @@
   }
 
   .cart-item {
-    grid-template-columns: 80px 1fr auto;
-    gap: 15px;
+    grid-template-columns: 100px 1fr auto;
+    gap: 18px;
+  }
+
+  .item-image {
+    width: 100px;
+    height: 100px;
   }
 
   .btn-remove {
@@ -213,7 +219,7 @@
 
 @media (max-width: 480px) {
   .orden-title {
-    font-size: 32px;
+    font-size: 34px;
   }
 
   .cart-item {

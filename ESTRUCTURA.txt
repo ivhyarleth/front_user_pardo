@@ -33,6 +33,4 @@
 ./src/pages/Orden.jsx
 ./src/pages/Register.css
 ./src/pages/Register.jsx
-./src/pages/Sede.css
-./src/pages/Sede.jsx
 ./vite.config.js

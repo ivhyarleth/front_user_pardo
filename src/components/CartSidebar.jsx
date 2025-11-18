@@ -28,14 +28,15 @@ const CartSidebar = () => {
       />
       
       {/* Sidebar */}
-      <div className="fixed right-0 top-0 h-full w-full md:w-96 bg-white shadow-2xl z-50 flex flex-col animate-fadeIn">
+      <div className="fixed right-0 top-0 h-full w-full md:w-[32rem] bg-white shadow-2xl z-50 flex flex-col animate-fadeIn">
         {/* Header */}
         <div className="bg-pardos-purple text-white p-6 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
-            <h2 className="font-spartan font-bold text-xl">MI ORDEN [{cart.length}]</h2>
+            {/* text-2xl -> text-3xl */}
+            <h2 className="font-spartan font-bold text-3xl">MI ORDEN</h2>
           </div>
           <button
             onClick={() => setIsCartOpen(false)}
@@ -54,7 +55,8 @@ const CartSidebar = () => {
               <svg className="w-24 h-24 text-pardos-gray mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
-              <p className="text-gray-500 font-lato text-lg">Tu carrito está vacío</p>
+              {/* text-lg -> text-xl */}
+              <p className="text-gray-500 font-lato text-xl">Tu carrito está vacío</p>
               <button
                 onClick={() => {
                   setIsCartOpen(false);
@@ -76,10 +78,12 @@ const CartSidebar = () => {
                       className="w-20 h-20 object-cover rounded-lg"
                     />
                     <div className="flex-1">
-                      <h3 className="font-spartan font-bold text-sm text-pardos-dark">
+                      {/* text-sm -> text-lg */}
+                      <h3 className="font-spartan font-bold text-lg text-pardos-dark">
                         {item.nombre}
                       </h3>
-                      <p className="text-pardos-rust font-bold text-lg">
+                      {/* text-lg -> text-xl */}
+                      <p className="text-pardos-rust font-bold text-xl">
                         S/ {item.precio.toFixed(2)}
                       </p>
                     </div>
@@ -95,7 +99,10 @@ const CartSidebar = () => {
                   
                   {/* Quantity Controls */}
                   <div className="flex items-center justify-between mt-3">
-                    <span className="text-sm font-lato text-gray-600">Cantidad x{item.cantidad}</span>
+                    {/* text-sm -> text-lg */}
+                    <span className="text-lg font-lato text-gray-600">
+                      Cantidad x{item.cantidad}
+                    </span>
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => updateQuantity(item.id, item.cantidad - 1)}
@@ -105,7 +112,8 @@ const CartSidebar = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                         </svg>
                       </button>
-                      <span className="font-spartan font-bold text-lg w-8 text-center">
+                      {/* text-lg -> text-xl */}
+                      <span className="font-spartan font-bold text-xl w-8 text-center">
                         {item.cantidad}
                       </span>
                       <button
@@ -128,20 +136,28 @@ const CartSidebar = () => {
         {cart.length > 0 && (
           <div className="border-t border-gray-200 p-4 space-y-4">
             <div className="flex justify-between items-center">
-              <span className="font-lato text-gray-600">Subtotal:</span>
-              <span className="font-spartan font-bold text-xl">
+              {/* añadimos tamaño al label */}
+              <span className="font-lato text-gray-600 text-lg">Subtotal:</span>
+              {/* text-xl -> text-2xl */}
+              <span className="font-spartan font-bold text-2xl">
                 S/ {getCartTotal().toFixed(2)}
               </span>
             </div>
-            <div className="flex justify-between items-center text-lg">
-              <span className="font-spartan font-bold text-pardos-dark">Total general</span>
-              <span className="font-spartan font-bold text-2xl text-pardos-rust">
+            <div className="flex justify-between items-center text-xl">
+              {/* antes text-lg en el contenedor; subimos a text-xl
+                  y al total lo subimos otro step */}
+              <span className="font-spartan font-bold text-pardos-dark">
+                Total general
+              </span>
+              {/* text-2xl -> text-3xl */}
+              <span className="font-spartan font-bold text-3xl text-pardos-rust">
                 S/ {getCartTotal().toFixed(2)}
               </span>
             </div>
             <button
               onClick={handleCheckout}
-              className="w-full bg-pardos-rust hover:bg-pardos-brown text-white font-spartan font-bold py-4 rounded-full transition-colors text-lg"
+              /* text-lg -> text-xl */
+              className="w-full bg-pardos-rust hover:bg-pardos-brown text-white font-spartan font-bold py-4 rounded-full transition-colors text-xl"
             >
               PROCESAR COMPRA
             </button>
