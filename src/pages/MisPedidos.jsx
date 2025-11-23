@@ -3,7 +3,7 @@ import { usePedidos } from '../context/PedidosContext';
 import './MisPedidos.css';
 
 const MisPedidos = () => {
-  const { pedidos, formatearTiempo } = usePedidos();
+  const { pedidos } = usePedidos();
   const navigate = useNavigate();
 
   const getStatusColor = (status) => {
@@ -23,8 +23,10 @@ const MisPedidos = () => {
     return ((index + 1) / estados.length) * 100;
   };
 
-  const formatFecha = (isoString) => {
+  const formatFechaISO = (isoString) => {
+    if (!isoString) return '';
     const fecha = new Date(isoString);
+    if (isNaN(fecha.getTime())) return '';
     return fecha.toLocaleString('es-PE', {
       day: '2-digit',
       month: '2-digit',
@@ -34,15 +36,40 @@ const MisPedidos = () => {
     });
   };
 
-  if (pedidos.length === 0) {
+  // Usa fecha ISO si existe, si no toma la del primer historial
+  const obtenerFechaMostrar = (pedido) => {
+    const desdeISO = formatFechaISO(pedido.fecha);
+    if (desdeISO) return desdeISO;
+
+    if (pedido.historialEstados && pedido.historialEstados.length > 0) {
+      return pedido.historialEstados[0].fecha || '';
+    }
+
+    return '';
+  };
+
+  // Calcula el total del pedido sumando sus ítems
+  const calcularTotalPedido = (pedido) => {
+    if (!pedido.items || !Array.isArray(pedido.items)) return 0;
+
+    const total = pedido.items.reduce((acc, item) => {
+      const cantidad = item.cantidad ?? item.quantity ?? 1;
+      const precioUnitario = Number(item.precio ?? 0);
+      return acc + precioUnitario * cantidad;
+    }, 0);
+
+    return Number(total.toFixed(2));
+  };
+
+  if (!pedidos || pedidos.length === 0) {
     return (
       <div className="mis-pedidos-page">
-        <div className="container-pedidos">          
+        <div className="container-pedidos">
           <div className="empty-pedidos">
             <div className="empty-icon">📦</div>
             <h2>No tienes pedidos aún</h2>
             <p>¡Realiza tu primer pedido desde nuestra carta!</p>
-            <button 
+            <button
               className="btn-primary"
               onClick={() => navigate('/menu')}
             >
@@ -61,6 +88,8 @@ const MisPedidos = () => {
           {pedidos.map((pedido) => {
             const statusColor = getStatusColor(pedido.status);
             const progreso = getProgressPercentage(pedido.status);
+            const fechaMostrar = obtenerFechaMostrar(pedido);
+            const totalPedido = calcularTotalPedido(pedido);
 
             return (
               <div key={pedido.id} className="pedido-card">
@@ -68,9 +97,11 @@ const MisPedidos = () => {
                 <div className="pedido-header">
                   <div className="pedido-info">
                     <h3 className="pedido-id">Pedido #{pedido.id}</h3>
-                    <p className="pedido-fecha">
-                      📅 {formatFecha(pedido.fecha)}
-                    </p>
+                    {fechaMostrar && (
+                      <p className="pedido-fecha">
+                        📅 {fechaMostrar}
+                      </p>
+                    )}
                     <p className="pedido-sede">
                       🍗 {pedido.sede}
                     </p>
@@ -81,7 +112,9 @@ const MisPedidos = () => {
 
                   <div className="pedido-total">
                     <span className="total-label">Total</span>
-                    <span className="total-amount">S/ {pedido.total.toFixed(2)}</span>
+                    <span className="total-amount">
+                      S/ {totalPedido.toFixed(2)}
+                    </span>
                   </div>
                 </div>
 
@@ -97,7 +130,7 @@ const MisPedidos = () => {
                   {/* Barra de Progreso */}
                   <div className="progress-container">
                     <div className="progress-bar">
-                      <div 
+                      <div
                         className="progress-fill"
                         style={{ width: `${progreso}%` }}
                       ></div>
@@ -110,22 +143,27 @@ const MisPedidos = () => {
                 <div className="pedido-productos">
                   <h4 className="productos-title">Productos:</h4>
                   <div className="productos-list">
-                    {pedido.items.map((item, index) => (
-                      <div key={index} className="producto-item">
-                        <img 
-                          src={item.imagen} 
-                          alt={item.nombre} 
-                          className="producto-img"
-                        />
-                        <div className="producto-info">
-                          <p className="producto-nombre">{item.nombre}</p>
-                          <p className="producto-cantidad">x{item.quantity}</p>
+                    {pedido.items.map((item, index) => {
+                      const cantidad = item.cantidad ?? item.quantity ?? 1;
+                      const precioUnitario = Number(item.precio ?? 0);
+
+                      return (
+                        <div key={index} className="producto-item">
+                          <img
+                            src={item.imagen}
+                            alt={item.nombre}
+                            className="producto-img"
+                          />
+                          <div className="producto-info">
+                            <p className="producto-nombre">{item.nombre}</p>
+                            <p className="producto-cantidad">x{cantidad}</p>
+                          </div>
+                          <span className="producto-precio">
+                            S/ {(precioUnitario * cantidad).toFixed(2)}
+                          </span>
                         </div>
-                        <span className="producto-precio">
-                          S/ {(item.precio * item.quantity).toFixed(2)}
-                        </span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -136,7 +174,7 @@ const MisPedidos = () => {
                   </summary>
                   <div className="historial-content">
                     <div className="timeline">
-                      {pedido.historialEstados.map((historial, index) => (
+                      {pedido.historialEstados?.map((historial, index) => (
                         <div key={index} className="timeline-item">
                           <div className="timeline-dot"></div>
                           <div className="timeline-content">
@@ -155,7 +193,7 @@ const MisPedidos = () => {
 
         {/* Botón para hacer nuevo pedido */}
         <div className="action-buttons">
-          <button 
+          <button
             className="btn-nuevo-pedido"
             onClick={() => navigate('/menu')}
           >

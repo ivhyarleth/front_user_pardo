@@ -1,18 +1,117 @@
-import { useState } from 'react';
-import { productos, categorias } from '../data/productos';
+import { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
+import { obtenerTodosLosProductosAPI, mapearProducto } from '../config/api';
 
 const Menu = () => {
-  const [selectedCategory, setSelectedCategory] = useState('Promociones');
+  const [productos, setProductos] = useState([]);
+  const [categorias, setCategorias] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const { addToCart } = useCart();
 
+  // Cargar productos desde la API
+  useEffect(() => {
+    cargarProductos();
+  }, []);
+
+  const cargarProductos = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Obtener todos los productos de la API
+      const data = await obtenerTodosLosProductosAPI({
+        sort_by: 'tipo_producto',
+        sort_order: 'asc'
+      });
+
+      // Mapear productos al formato del frontend
+      const productosMapeados = data
+        .filter(p => p.is_active !== false) // Solo productos activos
+        .map(mapearProducto);
+
+      setProductos(productosMapeados);
+
+      // Extraer categorías únicas
+      const categoriasUnicas = [...new Set(productosMapeados.map(p => p.tipo))];
+      setCategorias(categoriasUnicas);
+
+      // Seleccionar primera categoría por defecto
+      if (categoriasUnicas.length > 0 && !selectedCategory) {
+        setSelectedCategory(categoriasUnicas[0]);
+      }
+
+      setLoading(false);
+    } catch (err) {
+      console.error('Error cargando productos:', err);
+      setError('Error al cargar los productos. Por favor, intenta de nuevo.');
+      setLoading(false);
+    }
+  };
+
   const productosFiltrados = productos.filter(
-    producto => producto.categoria === selectedCategory
+    producto => producto.tipo === selectedCategory
   );
 
   const handleAddToCart = (producto) => {
-    addToCart(producto);
+    // Convertir formato del producto para el carrito
+    const productoParaCarrito = {
+      id: producto.id,
+      nombre: producto.nombre,
+      precio: producto.precio,
+      imagen: producto.imagen,
+      tipo: producto.tipo
+    };
+    addToCart(productoParaCarrito);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-pardos-cream flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-pardos-rust mx-auto mb-4"></div>
+          <p className="font-spartan font-bold text-xl text-pardos-dark">
+            Cargando productos...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-pardos-cream flex items-center justify-center">
+        <div className="text-center bg-white p-8 rounded-2xl shadow-lg max-w-md">
+          <div className="text-6xl mb-4">⚠️</div>
+          <h2 className="font-spartan font-bold text-2xl text-pardos-dark mb-4">
+            {error}
+          </h2>
+          <button
+            onClick={cargarProductos}
+            className="bg-pardos-rust hover:bg-pardos-brown text-white px-6 py-3 rounded-full font-spartan font-bold transition-all"
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (productos.length === 0) {
+    return (
+      <div className="min-h-screen bg-pardos-cream flex items-center justify-center">
+        <div className="text-center bg-white p-8 rounded-2xl shadow-lg max-w-md">
+          <div className="text-6xl mb-4">🍽️</div>
+          <h2 className="font-spartan font-bold text-2xl text-pardos-dark mb-4">
+            No hay productos disponibles
+          </h2>
+          <p className="font-lato text-gray-600 mb-6">
+            Por favor, vuelve más tarde.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-pardos-cream">
@@ -35,20 +134,19 @@ const Menu = () => {
                         : 'text-pardos-dark hover:bg-pardos-cream'
                     }`}
                   >
-                    {categoria}
+                    {categoria.charAt(0).toUpperCase() + categoria.slice(1)}
                   </button>
                 ))}
               </nav>
             </div>
           </aside>
 
-
           {/* Main Content - Products */}
           <main className="flex-1">
             {/* Category Header */}
             <div className="mb-6">
               <h2 className="font-spartan font-black text-3xl md:text-5xl text-pardos-dark">
-                {selectedCategory}
+                {selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)}
               </h2>
               <div className="h-1 w-32 bg-pardos-yellow mt-2" />
               <p className="text-gray-600 font-lato mt-2">
@@ -57,61 +155,58 @@ const Menu = () => {
             </div>
 
             {/* Products Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {productosFiltrados.map(producto => (
-                <div
-                  key={producto.id}
-                  className="bg-white rounded-2xl shadow-lg overflow-hidden transform transition-all duration-300 hover:shadow-2xl hover:scale-105"
-                >
-                  <div className="relative h-48 overflow-hidden">
-                    <img
-                      src={producto.imagen}
-                      alt={producto.nombre}
-                      className="w-full h-full object-cover transition-transform duration-300 hover:scale-110"
-                    />
-                    {producto.subcategoria && (
-                      <span className="absolute top-3 right-3 bg-pardos-yellow text-pardos-dark px-3 py-1 rounded-full text-xs font-spartan font-bold">
-                        {producto.subcategoria}
-                      </span>
-                    )}
-                  </div>
-                  
-                  <div className="p-5">
-                    <h3 className="font-spartan font-bold text-lg text-pardos-dark mb-2 line-clamp-2">
-                      {producto.nombre}
-                    </h3>
+            {productosFiltrados.length === 0 ? (
+              <div className="text-center bg-white p-12 rounded-2xl shadow-lg">
+                <div className="text-5xl mb-4">😔</div>
+                <p className="font-spartan font-bold text-xl text-pardos-dark">
+                  No hay productos en esta categoría
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {productosFiltrados.map(producto => (
+                  <div
+                    key={producto.id}
+                    className="bg-white rounded-2xl shadow-lg overflow-hidden transform transition-all duration-300 hover:shadow-2xl hover:scale-105"
+                  >
+                    <div className="relative h-48 overflow-hidden">
+                      <img
+                        src={producto.imagen}
+                        alt={producto.nombre}
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-110"
+                        onError={(e) => {
+                          e.target.src = 'https://via.placeholder.com/300x200?text=Imagen+no+disponible';
+                        }}
+                      />
+                      {/* Subcategoría / chip eliminado */}
+                    </div>
                     
-                    {producto.descripcion && (
-                      <p className="text-gray-600 font-lato text-sm mb-4 line-clamp-2">
-                        {producto.descripcion}
-                      </p>
-                    )}
-                    
-                    <div className="flex items-center justify-between">
-                      <span className="font-spartan font-black text-2xl text-pardos-rust">
-                        S/ {producto.precio.toFixed(2)}
-                      </span>
+                    <div className="p-5">
+                      <h3 className="font-spartan font-bold text-lg text-pardos-dark mb-2 line-clamp-2 min-h-[3.5rem]">
+                        {producto.nombre}
+                      </h3>
                       
-                      <button
-                        onClick={() => handleAddToCart(producto)}
-                        className="bg-pardos-rust hover:bg-pardos-brown text-white px-5 py-2 rounded-full font-spartan font-bold text-sm transition-all duration-300 transform hover:scale-105"
-                      >
-                        Agregar
-                      </button>
+                      {producto.descripcion && (
+                        <p className="text-gray-600 font-lato text-sm mb-4 line-clamp-2 min-h-[2.5rem]">
+                          {producto.descripcion}
+                        </p>
+                      )}
+                      
+                      <div className="flex items-center justify-between mt-4">
+                        <span className="font-spartan font-black text-2xl text-pardos-rust">
+                          S/ {producto.precio.toFixed(2)}
+                        </span>
+                        
+                        <button
+                          onClick={() => handleAddToCart(producto)}
+                          className="bg-pardos-rust hover:bg-pardos-brown text-white px-5 py-2 rounded-full font-spartan font-bold text-sm transition-all duration-300 transform hover:scale-105"
+                        >
+                          Agregar
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-
-            {productosFiltrados.length === 0 && (
-              <div className="text-center py-20">
-                <svg className="w-24 h-24 text-pardos-gray mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <p className="text-gray-500 font-lato text-xl">
-                  No hay productos disponibles en esta categoría
-                </p>
+                ))}
               </div>
             )}
           </main>

@@ -33,7 +33,7 @@ const Home = () => {
         <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-8">
           {/* Sede 1 */}
           <button
-            onClick={() => handleSedeSelection('SEDE 1')}
+            onClick={() => handleSedeSelection('SEDE 1 - San Isidro')}
             className="group relative overflow-hidden rounded-3xl shadow-2xl transform transition-all duration-300 hover:scale-105 hover:shadow-3xl"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-pardos-orange to-pardos-rust opacity-90 group-hover:opacity-100 transition-opacity" />
@@ -68,7 +68,7 @@ const Home = () => {
 
           {/* Sede 2 */}
           <button
-            onClick={() => handleSedeSelection('SEDE 2')}
+            onClick={() => handleSedeSelection('SEDE 2 - Miraflores')}
             className="group relative overflow-hidden rounded-3xl shadow-2xl transform transition-all duration-300 hover:scale-105 hover:shadow-3xl"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-pardos-yellow to-pardos-orange opacity-90 group-hover:opacity-100 transition-opacity" />
