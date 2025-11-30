@@ -1,19 +1,37 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { loginAPI } from '../config/api';
 
 const Login = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onLogin({
-      email,
-      nombre: email.split('@')[0],
-    });
-    navigate('/home');
+    setError('');
+    setLoading(true);
+    
+    try {
+      // Llamar a la API real de login
+      const data = await loginAPI(email, password);
+      
+      // Notificar al componente padre si existe la función
+      if (onLogin && data.user) {
+        onLogin(data.user);
+      }
+      
+      // Redirigir al home
+      navigate('/home');
+    } catch (err) {
+      console.error('Error en login:', err);
+      setError(err.message || 'Error al iniciar sesión. Verifica tus credenciales.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -41,6 +59,12 @@ const Login = ({ onLogin }) => {
             ¡Bienvenido de nuevo!
           </h2>
           
+          {error && (
+            <div className="bg-red-500 text-white px-6 py-4 rounded-lg mb-6 text-center font-lato">
+              {error}
+            </div>
+          )}
+          
           <form onSubmit={handleSubmit} className="space-y-8">
             <div>
               <input
@@ -50,6 +74,7 @@ const Login = ({ onLogin }) => {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-8 py-6 rounded-full font-lato text-xl text-gray-700 focus:outline-none focus:ring-4 focus:ring-pardos-orange"
                 required
+                disabled={loading}
               />
             </div>
 
@@ -61,11 +86,13 @@ const Login = ({ onLogin }) => {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-8 py-6 rounded-full font-lato text-xl text-gray-700 focus:outline-none focus:ring-4 focus:ring-pardos-orange pr-16"
                 required
+                disabled={loading}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-200 hover:text-white"
+                disabled={loading}
               >
                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   {showPassword ? (
@@ -79,15 +106,16 @@ const Login = ({ onLogin }) => {
 
             <button
               type="submit"
-              className="w-full bg-pardos-rust hover:bg-pardos-brown text-white font-spartan font-bold py-6 text-2xl rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg"
+              className="w-full bg-pardos-rust hover:bg-pardos-brown text-white font-spartan font-bold py-6 text-2xl rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              disabled={loading}
             >
-              Iniciar sesión
+              {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
             </button>
           </form>
 
           <div className="mt-8 text-center">
             <p className="text-white font-lato text-lg">
-              No tienes cuenta?{' '}
+              ¿No tienes cuenta?{' '}
               <Link 
                 to="/register" 
                 className="text-pardos-yellow hover:text-pardos-orange font-bold underline transition-colors"

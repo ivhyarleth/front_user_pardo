@@ -1,206 +1,354 @@
-// 🔌 Configuración de API - Sistema de Pedidos Pardo
-// ============================================
+/**
+ * 🔌 Configuración de API - Sistema de Pedidos Pardo
+ * Incluye autenticación JWT y multi-tenant
+ */
 
-// Configuración Base
-export const API_CONFIG = {
-  BASE_URL: 'https://tl5son9q35.execute-api.us-east-1.amazonaws.com/dev',
-  TENANT_ID: 'pardo',
-  POLLING_INTERVAL: 3000, // 3 segundos para actualizar estado de pedidos
-};
+// IMPORTANTE: Actualizar esta URL con la URL real de API Gateway después del despliegue
+// export const BASE_URL = 'https://your-api-gateway-url.execute-api.us-east-1.amazonaws.com/dev';
+export const BASE_URL = 'https://tl5son9q35.execute-api.us-east-1.amazonaws.com/dev'; // URL actual
+export const AUTH_BASE_URL = BASE_URL; // Mismo endpoint para auth
 
-// Headers requeridos para todas las peticiones
-const getHeaders = () => ({
-  'Content-Type': 'application/json',
-  'x-tenant-id': API_CONFIG.TENANT_ID,
-});
+// Claves para LocalStorage
+const AUTH_TOKEN_KEY = 'pardos-auth-token';
+const USER_DATA_KEY = 'pardos-user';
+const SEDE_KEY = 'pardos-sede-selected';
 
-// Función para limpiar objetos (eliminar undefined, null, '')
-const limpiarObjeto = (obj) => {
-  if (!obj) return {};
-  return Object.fromEntries(
-    Object.entries(obj).filter(
-      ([_, v]) => v !== undefined && v !== null && v !== ''
-    )
-  );
-};
+// ============================================================================
+// LOCAL STORAGE HELPERS
+// ============================================================================
 
-// Función genérica para hacer peticiones
-const request = async (endpoint, method = 'GET', body = null) => {
-  const url = `${API_CONFIG.BASE_URL}${endpoint}`;
-  const options = {
-    method,
-    headers: getHeaders(),
+/**
+ * Obtener token de autenticación del localStorage
+ */
+export function getAuthToken() {
+  return localStorage.getItem(AUTH_TOKEN_KEY);
+}
+
+/**
+ * Guardar token de autenticación
+ */
+export function setAuthToken(token) {
+  localStorage.setItem(AUTH_TOKEN_KEY, token);
+}
+
+/**
+ * Eliminar token de autenticación
+ */
+export function removeAuthToken() {
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
+/**
+ * Obtener datos del usuario autenticado
+ */
+export function getUserData() {
+  const userData = localStorage.getItem(USER_DATA_KEY);
+  return userData ? JSON.parse(userData) : null;
+}
+
+/**
+ * Guardar datos del usuario
+ */
+export function setUserData(user) {
+  localStorage.setItem(USER_DATA_KEY, JSON.stringify(user));
+}
+
+/**
+ * Eliminar datos del usuario
+ */
+export function removeUserData() {
+  localStorage.removeItem(USER_DATA_KEY);
+}
+
+/**
+ * Verificar si el usuario está autenticado
+ */
+export function isAuthenticated() {
+  return !!getAuthToken();
+}
+
+/**
+ * Obtener sede seleccionada
+ */
+export function getSelectedSede() {
+  return localStorage.getItem(SEDE_KEY) || 'pardo_miraflores'; // Default Miraflores
+}
+
+/**
+ * Guardar sede seleccionada
+ */
+export function setSelectedSede(sede) {
+  localStorage.setItem(SEDE_KEY, sede);
+}
+
+// ============================================================================
+// SEDES (Multi-tenant)
+// ============================================================================
+
+/**
+ * Lista de sedes disponibles
+ */
+export const SEDES = [
+  {
+    id: 'pardo_miraflores',
+    nombre: 'Pardos Miraflores',
+    direccion: 'Av. Benavides 730, Miraflores'
+  },
+  {
+    id: 'pardo_surco',
+    nombre: 'Pardos Surco',
+    direccion: 'Av. Primavera 645, Surco'
+  }
+];
+
+/**
+ * Obtener información de una sede
+ */
+export function getSedeInfo(sedeId) {
+  return SEDES.find(s => s.id === sedeId) || SEDES[0];
+}
+
+// ============================================================================
+// HEADERS Y REQUEST HELPERS
+// ============================================================================
+
+/**
+ * Obtener headers comunes para las peticiones
+ */
+export function getHeaders(includeAuth = false) {
+  const headers = {
+    'Content-Type': 'application/json',
+    'x-tenant-id': getSelectedSede()
   };
-
-  if (body && (method === 'POST' || method === 'PUT')) {
-    options.body = JSON.stringify(limpiarObjeto(body));
-  }
-
-  try {
-    const response = await fetch(url, options);
-
-    let data = null;
-    try {
-      data = await response.json();
-    } catch (e) {
-      // puede que no haya cuerpo JSON
-      data = null;
+  
+  if (includeAuth) {
+    const token = getAuthToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
-
-    if (!response.ok) {
-      const msg =
-        (data && (data.message || data.error || data.errorMessage)) ||
-        `Error ${response.status}: ${response.statusText}`;
-      throw new Error(msg);
-    }
-
-    // si no hay data, devolvemos objeto vacío para evitar undefined
-    return data ?? {};
-  } catch (error) {
-    console.error(`Error en ${method} ${endpoint}:`, error);
-    throw error;
   }
-};
-
-// ============================================
-// 📦 PRODUCTOS
-// ============================================
+  
+  return headers;
+}
 
 /**
- * Obtener lista de productos con paginación y filtros
- * @param {Object} filtros - { limit, cursor, tipo_producto, sort_by, sort_order }
- * @returns {Promise<Object>} { productos: [...], metadata?: {...} }
+ * Manejar respuestas de la API
  */
-export const obtenerProductosAPI = async (filtros = {}) => {
-  const params = new URLSearchParams(
-    limpiarObjeto({
-      tenant_id: API_CONFIG.TENANT_ID,
-      limit: filtros.limit || 100, // Obtener todos por defecto
-      tipo_producto: filtros.tipo_producto,
-      sort_by: filtros.sort_by,
-      sort_order: filtros.sort_order,
-      cursor: filtros.cursor,
+async function handleResponse(response) {
+  const data = await response.json().catch(() => ({}));
+  
+  if (!response.ok) {
+    // Si es error 401, cerrar sesión
+    if (response.status === 401) {
+      removeAuthToken();
+      removeUserData();
+      // Redirigir a login si no estamos ya ahí
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
+    }
+    
+    throw {
+      status: response.status,
+      message: data.message || 'Error en la petición',
+      data
+    };
+  }
+  
+  return data;
+}
+
+// ============================================================================
+// AUTH API
+// ============================================================================
+
+/**
+ * Login de usuario
+ */
+export async function loginAPI(email, password) {
+  const response = await fetch(`${AUTH_BASE_URL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email,
+      password,
+      frontend_type: 'client'
     })
-  );
-
-  return request(`/producto/obtener?${params.toString()}`);
-};
+  });
+  
+  const data = await handleResponse(response);
+  
+  // Guardar token y datos de usuario
+  if (data.token) {
+    setAuthToken(data.token);
+    setUserData(data.user);
+  }
+  
+  return data;
+}
 
 /**
- * Obtener todos los productos (maneja paginación automáticamente)
- * Funciona aunque la API NO devuelva metadata (caso actual).
- * @param {Object} filtros - { tipo_producto, sort_by, sort_order }
- * @returns {Promise<Array>} Array de productos
+ * Registro de nuevo usuario
  */
-export const obtenerTodosLosProductosAPI = async (filtros = {}) => {
-  let todosLosProductos = [];
-  let cursor = null;
-  let hasMore = true;
-
-  while (hasMore) {
-    const data = await obtenerProductosAPI({
-      ...filtros,
-      cursor,
-      limit: 100,
-    });
-
-    if (!data) break;
-
-    const productos = Array.isArray(data.productos) ? data.productos : [];
-    todosLosProductos = [...todosLosProductos, ...productos];
-
-    // Si no hay metadata, asumimos que no hay más páginas
-    if (!data.metadata) {
-      hasMore = false;
-    } else {
-      hasMore = !!data.metadata.has_more;
-      cursor = data.metadata.next_cursor;
-    }
+export async function registroAPI(userData) {
+  const response = await fetch(`${AUTH_BASE_URL}/auth/registro`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ...userData,
+      frontend_type: 'client',
+      user_type: 'cliente'
+    })
+  });
+  
+  const responseData = await handleResponse(response);
+  
+  // Después del registro exitoso, hacer login automático
+  if (responseData.user_id) {
+    return await loginAPI(userData.email, userData.password);
   }
+  
+  return responseData;
+}
 
-  return todosLosProductos;
-};
+/**
+ * Logout de usuario
+ */
+export async function logoutAPI() {
+  try {
+    const token = getAuthToken();
+    if (token) {
+      await fetch(`${AUTH_BASE_URL}/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+    }
+  } finally {
+    // Siempre limpiar local storage
+    removeAuthToken();
+    removeUserData();
+  }
+}
+
+// ============================================================================
+// PRODUCTOS API
+// ============================================================================
+
+/**
+ * Obtener lista de productos de la sede seleccionada
+ */
+export async function obtenerProductosAPI() {
+  const response = await fetch(`${BASE_URL}/producto/obtener`, {
+    method: 'GET',
+    headers: getHeaders(false) // Endpoint público
+  });
+  
+  return await handleResponse(response);
+}
+
+/**
+ * Obtener todos los productos (maneja paginación)
+ */
+export async function obtenerTodosLosProductosAPI() {
+  const data = await obtenerProductosAPI();
+  return data.productos || [];
+}
 
 /**
  * Obtener un producto por ID
- * @param {string} productoId - UUID del producto
- * @returns {Promise<Object>} Datos del producto
  */
-export const obtenerProductoAPI = async (productoId) => {
-  return request(`/producto/${productoId}?tenant_id=${API_CONFIG.TENANT_ID}`);
-};
+export async function obtenerProductoAPI(productoId) {
+  const response = await fetch(`${BASE_URL}/producto/${productoId}`, {
+    method: 'GET',
+    headers: getHeaders(false) // Endpoint público
+  });
+  
+  return await handleResponse(response);
+}
 
-// ============================================
-// 🛒 PEDIDOS
-// ============================================
+// ============================================================================
+// PEDIDOS API
+// ============================================================================
 
 /**
  * Crear un nuevo pedido
- * @param {Object} pedidoData - Datos del pedido
- * @returns {Promise<Object>} Pedido creado
+ * Requiere autenticación
  */
-export const crearPedidoAPI = async (pedidoData) => {
-  // Validar que todos los campos requeridos estén presentes
-  if (!pedidoData.usuario_id) {
-    throw new Error('usuario_id es requerido');
+export async function crearPedidoAPI(pedidoData) {
+  if (!isAuthenticated()) {
+    throw new Error('Debe iniciar sesión para crear un pedido');
   }
-  if (!pedidoData.productos || pedidoData.productos.length === 0) {
-    throw new Error('productos es requerido y debe tener al menos un item');
-  }
-  if (!pedidoData.direccion_entrega) {
-    throw new Error('direccion_entrega es requerida');
-  }
-  if (!pedidoData.telefono) {
-    throw new Error('telefono es requerido');
-  }
-
+  
+  const user = getUserData();
+  
+  // Preparar datos del pedido
   const body = {
-    tenant_id: API_CONFIG.TENANT_ID,
-    usuario_id: pedidoData.usuario_id,
+    usuario_id: user.user_id,
     productos: pedidoData.productos.map((p) => ({
-      producto_id: p.producto_id || p.id, // Soportar ambos formatos
-      cantidad: p.cantidad || p.quantity,
+      producto_id: p.producto_id || p.id,
+      cantidad: p.cantidad || p.quantity || 1,
     })),
     direccion_entrega: pedidoData.direccion_entrega,
     telefono: pedidoData.telefono,
     medio_pago: pedidoData.medio_pago || 'efectivo',
     notas: pedidoData.notas || '',
   };
-
-  return request('/pedido/crear', 'POST', body);
-};
-
-/**
- * Consultar estado de un pedido
- * @param {string} pedidoId - UUID del pedido
- * @returns {Promise<Object>} Estado del pedido
- */
-export const consultarPedidoAPI = async (pedidoId) => {
-  return request(
-    `/pedido/consultar?pedido_id=${pedidoId}&tenant_id=${API_CONFIG.TENANT_ID}`
-  );
-};
-
-/**
- * Actualizar pedido (rara vez necesario)
- * @param {string} pedidoId - UUID del pedido
- * @param {Object} datosActualizar - Datos a actualizar
- * @returns {Promise<Object>} Pedido actualizado
- */
-export const actualizarPedidoAPI = async (pedidoId, datosActualizar) => {
-  return request(`/pedido/${pedidoId}`, 'PUT', {
-    tenant_id: API_CONFIG.TENANT_ID,
-    ...datosActualizar,
+  
+  const response = await fetch(`${BASE_URL}/pedido/crear`, {
+    method: 'POST',
+    headers: getHeaders(true), // Incluir autenticación
+    body: JSON.stringify(body)
   });
-};
-
-// ============================================
-// 🔄 POLLING DE PEDIDOS
-// ============================================
+  
+  return await handleResponse(response);
+}
 
 /**
- * Clase para hacer polling del estado de un pedido
+ * Consultar pedidos del usuario autenticado
+ * Requiere autenticación
  */
+export async function consultarPedidosAPI(params = {}) {
+  if (!isAuthenticated()) {
+    throw new Error('Debe iniciar sesión para consultar pedidos');
+  }
+  
+  const user = getUserData();
+  const queryParams = new URLSearchParams({
+    usuario_id: user.user_id,
+    ...params
+  }).toString();
+  
+  const response = await fetch(`${BASE_URL}/pedido/consultar?${queryParams}`, {
+    method: 'GET',
+    headers: getHeaders(true) // Incluir autenticación
+  });
+  
+  return await handleResponse(response);
+}
+
+/**
+ * Obtener un pedido específico por ID
+ */
+export async function consultarPedidoAPI(pedidoId) {
+  if (!isAuthenticated()) {
+    throw new Error('Debe iniciar sesión para ver el pedido');
+  }
+  
+  const response = await fetch(`${BASE_URL}/pedido/consultar?pedido_id=${pedidoId}`, {
+    method: 'GET',
+    headers: getHeaders(true) // Incluir autenticación
+  });
+  
+  return await handleResponse(response);
+}
+
+// ============================================================================
+// POLLING DE PEDIDOS
+// ============================================================================
+
 export class PedidoPoller {
   constructor(pedidoId, onUpdate) {
     this.pedidoId = pedidoId;
@@ -210,11 +358,8 @@ export class PedidoPoller {
   }
 
   iniciar() {
-    this.consultar(); // Consultar inmediatamente
-    this.interval = setInterval(
-      () => this.consultar(),
-      API_CONFIG.POLLING_INTERVAL
-    );
+    this.consultar();
+    this.interval = setInterval(() => this.consultar(), 3000);
   }
 
   detener() {
@@ -229,12 +374,10 @@ export class PedidoPoller {
       const data = await consultarPedidoAPI(this.pedidoId);
       const pedido = data.pedido || data;
 
-      // Solo actualizar si el estado cambió
       if (pedido.estado !== this.estadoAnterior) {
         this.estadoAnterior = pedido.estado;
         this.onUpdate(pedido);
 
-        // Detener si el pedido terminó
         if (pedido.estado === 'entregado' || pedido.estado === 'cancelado') {
           this.detener();
         }
@@ -245,107 +388,17 @@ export class PedidoPoller {
   }
 }
 
-// ============================================
-// 📊 INVENTARIO
-// ============================================
+// ============================================================================
+// MAPEO DE ESTADOS Y PRODUCTOS
+// ============================================================================
 
-/**
- * Consultar inventario de productos
- * @param {Array<string>} productosIds - Array de UUIDs de productos
- * @returns {Promise<Object>} Inventario de productos
- */
-export const consultarInventarioAPI = async (productosIds) => {
-  return request('/inventario/consultar', 'POST', {
-    tenant_id: API_CONFIG.TENANT_ID,
-    productos_ids: productosIds,
-  });
-};
-
-/**
- * Ajustar inventario manualmente (solo admin)
- * @param {string} productoId - UUID del producto
- * @param {number} cantidad - Cantidad a ajustar (positivo = agregar, negativo = quitar)
- * @param {string} motivo - Motivo del ajuste
- * @returns {Promise<Object>} Inventario actualizado
- */
-export const ajustarInventarioAPI = async (
-  productoId,
-  cantidad,
-  motivo = 'ajuste_manual'
-) => {
-  return request('/inventario/ajustar', 'POST', {
-    tenant_id: API_CONFIG.TENANT_ID,
-    producto_id: productoId,
-    cantidad,
-    motivo,
-  });
-};
-
-// ============================================
-// 👨‍🍳 WORKFLOW STEP FUNCTIONS (Solo para admin)
-// ============================================
-
-/**
- * Chef confirma que terminó de preparar
- * @param {string} pedidoId - UUID del pedido
- * @param {string} chefId - ID del chef
- * @param {boolean} aprobado - Si el pedido fue aprobado o rechazado
- * @returns {Promise<Object>} Resultado
- */
-export const confirmarChefAPI = async (
-  pedidoId,
-  chefId,
-  aprobado = true
-) => {
-  return request('/chef/confirma', 'POST', {
-    tenant_id: API_CONFIG.TENANT_ID,
-    pedido_id: pedidoId,
-    chef_id: chefId,
-    aprobado,
-  });
-};
-
-/**
- * Despachador confirma que despachó el pedido
- * @param {string} pedidoId - UUID del pedido
- * @returns {Promise<Object>} Resultado
- */
-export const confirmarDespachadoAPI = async (pedidoId) => {
-  return request('/despachado/confirma', 'POST', {
-    tenant_id: API_CONFIG.TENANT_ID,
-    pedido_id: pedidoId,
-  });
-};
-
-/**
- * Motorizado confirma que recogió el pedido
- * @param {string} pedidoId - UUID del pedido
- * @param {string} motorizadoId - ID del motorizado
- * @returns {Promise<Object>} Resultado
- */
-export const confirmarMotorizadoAPI = async (pedidoId, motorizadoId) => {
-  return request('/motorizado/confirma', 'POST', {
-    tenant_id: API_CONFIG.TENANT_ID,
-    pedido_id: pedidoId,
-    motorizado_id: motorizadoId,
-  });
-};
-
-// ============================================
-// 🗺️ MAPEO DE ESTADOS DEL BACKEND A FRONTEND
-// ============================================
-
-/**
- * Mapea los estados del backend a los estados del frontend
- * Backend: pendiente, preparando, listo_despacho, recogiendo, en_camino, entregado, cancelado
- * Frontend: Pedido Creado, Pedido Pendiente, Pedido Preparado, Pedido Enviado, Pedido Recibido
- */
 export const mapearEstadoPedido = (estadoBackend) => {
   const mapeo = {
     pendiente: 'Pedido Creado',
     preparando: 'Pedido Pendiente',
     listo_despacho: 'Pedido Preparado',
-    recogiendo: 'Pedido Preparado', // Aún en local
+    despachando: 'Pedido Preparado',
+    recogiendo: 'Pedido Preparado',
     en_camino: 'Pedido Enviado',
     entregado: 'Pedido Recibido',
     cancelado: 'Pedido Cancelado',
@@ -354,13 +407,10 @@ export const mapearEstadoPedido = (estadoBackend) => {
   return mapeo[estadoBackend] || 'Pedido Creado';
 };
 
-/**
- * Mapea producto del backend al formato del frontend
- */
 export const mapearProducto = (productoBackend) => {
   return {
     id: productoBackend.producto_id,
-    nombre: productoBackend.nombre_producto,
+    nombre: productoBackend.nombre_producto || productoBackend.nombre_plato,
     tipo: productoBackend.tipo_producto,
     precio: productoBackend.precio_producto,
     descripcion: productoBackend.descripcion_producto || '',
@@ -373,43 +423,33 @@ export const mapearProducto = (productoBackend) => {
   };
 };
 
-/**
- * Mapea pedido del backend al formato del frontend
- */
 export const mapearPedido = (pedidoBackend) => {
   return {
     id: pedidoBackend.pedido_id,
-    fecha: pedidoBackend.fecha_pedido || pedidoBackend.fecha_creacion,
+    fecha: pedidoBackend.fecha_inicio || pedidoBackend.fecha_creacion,
     estado: mapearEstadoPedido(pedidoBackend.estado),
-    estadoBackend: pedidoBackend.estado, // Guardar el estado original
-    total: pedidoBackend.monto_total || 0,
+    estadoBackend: pedidoBackend.estado,
+    total: pedidoBackend.precio_total || 0,
     direccion: pedidoBackend.direccion_entrega || '',
     telefono: pedidoBackend.telefono || '',
     medioPago: pedidoBackend.medio_pago || 'efectivo',
     notas: pedidoBackend.notas || '',
     productos: pedidoBackend.productos || [],
-    usuarioId: pedidoBackend.usuario_id,
+    usuarioId: pedidoBackend.user_id,
     tenantId: pedidoBackend.tenant_id,
-    executionArn: pedidoBackend.execution_arn, // Para tracking de Step Functions
+    executionArn: pedidoBackend.execution_arn,
   };
 };
 
-// ============================================
-// 🔍 HELPERS
-// ============================================
+// ============================================================================
+// HELPERS
+// ============================================================================
 
-/**
- * Valida que un string sea un UUID válido
- */
 export const esUUIDValido = (uuid) => {
-  const uuidRegex =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   return uuidRegex.test(uuid);
 };
 
-/**
- * Genera un UUID v4 simple (para usuario temporal)
- */
 export const generarUUID = () => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
     const r = (Math.random() * 16) | 0;
@@ -418,38 +458,48 @@ export const generarUUID = () => {
   });
 };
 
+// ============================================================================
+// EXPORT DEFAULT
+// ============================================================================
+
 export default {
+  // Auth
+  loginAPI,
+  registroAPI,
+  logoutAPI,
+  isAuthenticated,
+  getAuthToken,
+  getUserData,
+  
   // Productos
   obtenerProductosAPI,
   obtenerTodosLosProductosAPI,
   obtenerProductoAPI,
-
+  
   // Pedidos
   crearPedidoAPI,
+  consultarPedidosAPI,
   consultarPedidoAPI,
-  actualizarPedidoAPI,
-
+  
   // Polling
   PedidoPoller,
-
-  // Inventario
-  consultarInventarioAPI,
-  ajustarInventarioAPI,
-
-  // Workflow (Admin)
-  confirmarChefAPI,
-  confirmarDespachadoAPI,
-  confirmarMotorizadoAPI,
-
+  
+  // Sedes
+  getSelectedSede,
+  setSelectedSede,
+  SEDES,
+  getSedeInfo,
+  
   // Mapeo
   mapearEstadoPedido,
   mapearProducto,
   mapearPedido,
-
+  
   // Helpers
   esUUIDValido,
   generarUUID,
-
+  getHeaders,
+  
   // Config
-  API_CONFIG,
+  BASE_URL
 };

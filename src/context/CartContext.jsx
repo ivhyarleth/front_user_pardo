@@ -13,6 +13,8 @@ export const useCart = () => {
 export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [showAddedModal, setShowAddedModal] = useState(false);
+  const [lastAddedProduct, setLastAddedProduct] = useState(null);
 
   useEffect(() => {
     const savedCart = localStorage.getItem('pardos-cart');
@@ -37,6 +39,15 @@ export const CartProvider = ({ children }) => {
       }
       return [...prevCart, { ...producto, cantidad: 1 }];
     });
+
+    // Guardar producto agregado y mostrar toast
+    setLastAddedProduct(producto);
+    setShowAddedModal(true);
+
+    // Ocultar toast automáticamente después de 3 segundos
+    setTimeout(() => {
+      setShowAddedModal(false);
+    }, 3000);
   };
 
   const removeFromCart = (productoId) => {
@@ -78,7 +89,10 @@ export const CartProvider = ({ children }) => {
         getCartTotal,
         getCartCount,
         isCartOpen,
-        setIsCartOpen
+        setIsCartOpen,
+        showAddedModal,
+        setShowAddedModal,
+        lastAddedProduct
       }}
     >
       {children}

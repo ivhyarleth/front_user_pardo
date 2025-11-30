@@ -5,8 +5,7 @@ import {
   PedidoPoller,
   mapearPedido,
   mapearEstadoPedido,
-  generarUUID,
-  esUUIDValido
+  getUserData
 } from '../config/api';
 
 const PedidosContext = createContext();
@@ -32,14 +31,7 @@ export const PedidosProvider = ({ children }) => {
         const pedidosGuardados = JSON.parse(savedPedidos);
         setPedidos(pedidosGuardados);
         
-        // Iniciar polling para pedidos que no estén terminados
-        pedidosGuardados.forEach(pedido => {
-          if (pedido.estadoBackend && 
-              pedido.estadoBackend !== 'entregado' && 
-              pedido.estadoBackend !== 'cancelado') {
-            iniciarPollingPedido(pedido.id);
-          }
-        });
+        // NO iniciar polling automático - solo cuando el usuario lo solicite
       } catch (error) {
         console.error('Error cargando pedidos guardados:', error);
       }
@@ -97,17 +89,9 @@ export const PedidosProvider = ({ children }) => {
   const agregarPedido = async (pedidoData) => {
     setLoading(true);
     try {
-      // Obtener o generar usuario_id
-      let usuarioId = localStorage.getItem('pardos-user-id');
-      
-      if (!usuarioId || !esUUIDValido(usuarioId)) {
-        usuarioId = generarUUID();
-        localStorage.setItem('pardos-user-id', usuarioId);
-      }
-
       // Preparar datos del pedido
+      // crearPedidoAPI ya obtiene el user_id del JWT automáticamente
       const datosParaAPI = {
-        usuario_id: usuarioId,
         productos: pedidoData.items.map(item => ({
           producto_id: item.id,
           cantidad: item.quantity || item.cantidad
@@ -118,7 +102,7 @@ export const PedidosProvider = ({ children }) => {
         notas: pedidoData.notas || ''
       };
 
-      // Llamar a la API
+      // Llamar a la API (crearPedidoAPI obtiene user_id del JWT)
       const response = await crearPedidoAPI(datosParaAPI);
       const pedidoCreado = response.pedido || response.data?.pedido || response;
 
@@ -144,9 +128,6 @@ export const PedidosProvider = ({ children }) => {
 
       // Agregar a la lista
       setPedidos(prev => [nuevoPedido, ...prev]);
-
-      // Iniciar polling para este pedido
-      iniciarPollingPedido(nuevoPedido.id);
 
       setLoading(false);
       return nuevoPedido;
@@ -244,6 +225,27 @@ export const PedidosProvider = ({ children }) => {
     return ((index + 1) / estados.length) * 100;
   };
 
+  /**
+   * Refrescar todos los pedidos activos (para botón manual)
+   */
+  const refrescarPedidos = async () => {
+    setLoading(true);
+    try {
+      // Refrescar cada pedido activo
+      const pedidosActivos = pedidos.filter(
+        p => p.estadoBackend && p.estadoBackend !== 'entregado' && p.estadoBackend !== 'cancelado'
+      );
+      
+      for (const pedido of pedidosActivos) {
+        await consultarPedido(pedido.id);
+      }
+    } catch (error) {
+      console.error('Error refrescando pedidos:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const value = {
     pedidos,
     loading,
@@ -253,7 +255,8 @@ export const PedidosProvider = ({ children }) => {
     formatearTiempo,
     getProgresoPedido,
     iniciarPollingPedido,
-    detenerPollingPedido
+    detenerPollingPedido,
+    refrescarPedidos // Nueva función para refrescar manualmente
   };
 
   return (

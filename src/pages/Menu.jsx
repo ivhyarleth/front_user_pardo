@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { obtenerTodosLosProductosAPI, mapearProducto } from '../config/api';
+import { formatCategoryName } from '../lib/formatters';
 
 const Menu = () => {
   const [productos, setProductos] = useState([]);
@@ -130,11 +131,11 @@ const Menu = () => {
                     onClick={() => setSelectedCategory(categoria)}
                     className={`w-full text-left px-4 py-4 rounded-xl font-spartan font-semibold text-lg md:text-xl transition-all duration-300 ${
                       selectedCategory === categoria
-                        ? 'bg-pardos-rust text-white shadow-md'
-                        : 'text-pardos-dark hover:bg-pardos-cream'
+                        ? 'bg-gradient-to-r from-pardos-rust to-pardos-orange text-white shadow-md transform scale-105'
+                        : 'text-pardos-dark hover:bg-pardos-cream hover:shadow'
                     }`}
                   >
-                    {categoria.charAt(0).toUpperCase() + categoria.slice(1)}
+                    {formatCategoryName(categoria)}
                   </button>
                 ))}
               </nav>
@@ -146,7 +147,7 @@ const Menu = () => {
             {/* Category Header */}
             <div className="mb-6">
               <h2 className="font-spartan font-black text-3xl md:text-5xl text-pardos-dark">
-                {selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)}
+                {formatCategoryName(selectedCategory)}
               </h2>
               <div className="h-1 w-32 bg-pardos-yellow mt-2" />
               <p className="text-gray-600 font-lato mt-2">
@@ -178,7 +179,6 @@ const Menu = () => {
                           e.target.src = 'https://via.placeholder.com/300x200?text=Imagen+no+disponible';
                         }}
                       />
-                      {/* Subcategoría / chip eliminado */}
                     </div>
                     
                     <div className="p-5">

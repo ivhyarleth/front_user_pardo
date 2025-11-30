@@ -4,12 +4,15 @@ import { CartProvider } from './context/CartContext';
 import { PedidosProvider } from './context/PedidosContext';
 import Header from './components/Header';
 import CartSidebar from './components/CartSidebar';
+import AddToCartToast from './components/AddToCartToast';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Home from './pages/Home';
 import Menu from './pages/Menu';
 import Checkout from './pages/Checkout';
 import MisPedidos from './pages/MisPedidos';
+import Orden from './pages/Orden';
+import OrdenDetalle from './pages/OrdenDetalle';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -41,6 +44,7 @@ function App() {
           <div className="min-h-screen bg-pardos-cream">
             {user && <Header user={user} onLogout={handleLogout} />}
             <CartSidebar />
+            <AddToCartToast />
             
             <Routes>
               <Route 
@@ -70,6 +74,14 @@ function App() {
               <Route 
                 path="/mis-pedidos" 
                 element={user ? <MisPedidos /> : <Navigate to="/login" />} 
+              />
+              <Route 
+                path="/orden" 
+                element={user ? <Orden /> : <Navigate to="/login" />} 
+              />
+              <Route 
+                path="/orden/:pedidoId" 
+                element={user ? <OrdenDetalle /> : <Navigate to="/login" />} 
               />
             </Routes>
           </div>

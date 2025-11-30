@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router-dom';
+import { SEDES, setSelectedSede } from '../config/api';
 
 const Home = () => {
   const navigate = useNavigate();
 
-  const handleSedeSelection = (sede) => {
-    // Guardar la sede seleccionada
-    localStorage.setItem('sede-seleccionada', sede);
+  const handleSedeSelection = (sedeId) => {
+    // Guardar la sede seleccionada usando la función de api.js
+    setSelectedSede(sedeId);
     navigate('/menu');
   };
 
@@ -31,9 +32,9 @@ const Home = () => {
         </div>
 
         <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-8">
-          {/* Sede 1 */}
+          {/* Sede Miraflores */}
           <button
-            onClick={() => handleSedeSelection('SEDE 1 - San Isidro')}
+            onClick={() => handleSedeSelection('pardo_miraflores')}
             className="group relative overflow-hidden rounded-3xl shadow-2xl transform transition-all duration-300 hover:scale-105 hover:shadow-3xl"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-pardos-orange to-pardos-rust opacity-90 group-hover:opacity-100 transition-opacity" />
@@ -60,15 +61,15 @@ const Home = () => {
                 </svg>
               </div>
               <h2 className="font-spartan font-black text-white text-5xl mb-2">
-                SEDE 1
+                PARDOS MIRAFLORES
               </h2>
-              <p className="text-white font-lato text-lg">San Isidro, Lima</p>
+              <p className="text-white font-lato text-lg">Av. Benavides 730, Miraflores</p>
             </div>
           </button>
 
-          {/* Sede 2 */}
+          {/* Sede Surco */}
           <button
-            onClick={() => handleSedeSelection('SEDE 2 - Miraflores')}
+            onClick={() => handleSedeSelection('pardo_surco')}
             className="group relative overflow-hidden rounded-3xl shadow-2xl transform transition-all duration-300 hover:scale-105 hover:shadow-3xl"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-pardos-yellow to-pardos-orange opacity-90 group-hover:opacity-100 transition-opacity" />
@@ -95,10 +96,10 @@ const Home = () => {
                 </svg>
               </div>
               <h2 className="font-spartan font-black text-white text-5xl mb-2">
-                SEDE 2
+                PARDOS SURCO
               </h2>
               <p className="text-white font-lato text-lg">
-                Miraflores, Lima
+                Av. Primavera 645, Surco
               </p>
             </div>
           </button>
