@@ -160,7 +160,22 @@ const MisPedidos = () => {
     return sedeMap[tenantId] || tenantId;
   };
 
-  if (!pedidos || pedidos.length === 0) {
+  // Mostrar indicador de carga mientras se cargan los pedidos por primera vez
+  if (loading && (!pedidos || pedidos.length === 0)) {
+    return (
+      <div className="min-h-screen bg-pardos-cream py-8">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col items-center justify-center min-h-[60vh]">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-pardos-rust mb-4"></div>
+            <p className="text-gray-600 font-lato text-lg">Cargando tus pedidos...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Mostrar mensaje cuando no hay pedidos (solo después de que termine de cargar)
+  if (!loading && (!pedidos || pedidos.length === 0)) {
     return (
       <div className="min-h-screen bg-pardos-cream py-8">
         <div className="container mx-auto px-4">

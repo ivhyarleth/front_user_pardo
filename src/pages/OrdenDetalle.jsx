@@ -91,9 +91,6 @@ const OrdenDetalle = () => {
       if (pedidoExistente) {
         setPedido(pedidoExistente);
         setLoading(false);
-        
-        // NO INICIAR POLLING AUTOMÁTICAMENTE
-        console.log('✅ Pedido cargado, polling solo se iniciará manualmente');
       } else {
         // Intentar consultar desde el backend UNA SOLA VEZ
         try {

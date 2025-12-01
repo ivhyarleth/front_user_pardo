@@ -315,15 +315,18 @@ export async function consultarPedidosAPI(params = {}) {
     throw new Error('Debe iniciar sesión para consultar pedidos');
   }
   
-  const user = getUserData();
-  const queryParams = new URLSearchParams({
-    usuario_id: user.user_id,
-    ...params
-  }).toString();
+  // El backend obtiene el user_id del JWT automáticamente
+  // Solo pasamos parámetros adicionales si los hay
+  const queryParams = new URLSearchParams(params).toString();
+  const url = queryParams 
+    ? `${BASE_URL}/pedido/consultar?${queryParams}`
+    : `${BASE_URL}/pedido/consultar`;
   
-  const response = await fetch(`${BASE_URL}/pedido/consultar?${queryParams}`, {
+  const headers = getHeaders(true); // Incluir autenticación (JWT con user_id)
+  
+  const response = await fetch(url, {
     method: 'GET',
-    headers: getHeaders(true) // Incluir autenticación
+    headers: headers
   });
   
   return await handleResponse(response);

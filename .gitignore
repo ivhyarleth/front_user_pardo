@@ -13,3 +13,5 @@ node_modules
 .env.production.local
 
 start.bat
+
+dist

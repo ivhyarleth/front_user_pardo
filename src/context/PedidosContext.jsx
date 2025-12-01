@@ -1,7 +1,9 @@
+/* @refresh reset */
 import { createContext, useContext, useState, useEffect } from 'react';
 import { 
   crearPedidoAPI, 
   consultarPedidoAPI, 
+  consultarPedidosAPI,
   PedidoPoller,
   mapearPedido,
   mapearEstadoPedido,
@@ -10,7 +12,8 @@ import {
 
 const PedidosContext = createContext();
 
-export const usePedidos = () => {
+// Hook personalizado
+const usePedidos = () => {
   const context = useContext(PedidosContext);
   if (!context) {
     throw new Error('usePedidos debe usarse dentro de PedidosProvider');
@@ -18,24 +21,67 @@ export const usePedidos = () => {
   return context;
 };
 
-export const PedidosProvider = ({ children }) => {
+const PedidosProvider = ({ children }) => {
   const [pedidos, setPedidos] = useState([]);
   const [pollers, setPollers] = useState({}); // Map de pollers activos por pedido
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Iniciar en true para mostrar carga inicial
 
-  // Cargar pedidos del localStorage al iniciar
+  // Cargar pedidos del backend al iniciar
   useEffect(() => {
-    const savedPedidos = localStorage.getItem('pardos-pedidos');
-    if (savedPedidos) {
+    const cargarPedidosDelBackend = async () => {
       try {
-        const pedidosGuardados = JSON.parse(savedPedidos);
-        setPedidos(pedidosGuardados);
+        // Verificar si hay usuario autenticado
+        const user = getUserData();
+        if (!user || !user.user_id) {
+          setLoading(false);
+          return;
+        }
+
+        setLoading(true);
         
-        // NO iniciar polling automático - solo cuando el usuario lo solicite
+        // Consultar todos los pedidos del usuario desde el backend
+        const response = await consultarPedidosAPI();
+        const pedidosBackend = response.pedidos || response.data?.pedidos || [];
+        
+        // Mapear pedidos del backend al formato del frontend
+        const pedidosMapeados = pedidosBackend.map(pedidoBackend => {
+          const pedidoMapeado = mapearPedido(pedidoBackend);
+          
+          // Agregar información adicional
+          return {
+            ...pedidoMapeado,
+            items: pedidoBackend.productos?.map(prod => ({
+              id: prod.product_id || prod.producto_id,
+              nombre: prod.nombre || prod.nombre_producto || 'Producto sin nombre',
+              cantidad: prod.quantity || prod.cantidad || 1,
+              precio: prod.price || prod.precio || 0,
+              imagen: prod.imagen || 'https://via.placeholder.com/64'
+            })) || [],
+            historialEstados: pedidoBackend.historialEstados || [],
+            createdAt: pedidoBackend.fecha_inicio ? new Date(pedidoBackend.fecha_inicio).getTime() : Date.now()
+          };
+        });
+        
+        setPedidos(pedidosMapeados);
       } catch (error) {
-        console.error('Error cargando pedidos guardados:', error);
+        console.error('Error cargando pedidos del backend:', error);
+        
+        // Fallback: cargar desde localStorage si falla el backend
+        const savedPedidos = localStorage.getItem('pardos-pedidos');
+        if (savedPedidos) {
+          try {
+            const pedidosGuardados = JSON.parse(savedPedidos);
+            setPedidos(pedidosGuardados);
+          } catch (parseError) {
+            console.error('Error cargando pedidos guardados:', parseError);
+          }
+        }
+      } finally {
+        setLoading(false);
       }
-    }
+    };
+
+    cargarPedidosDelBackend();
   }, []);
 
   // Guardar pedidos en localStorage cuando cambien
@@ -226,19 +272,44 @@ export const PedidosProvider = ({ children }) => {
   };
 
   /**
-   * Refrescar todos los pedidos activos (para botón manual)
+   * Refrescar todos los pedidos desde el backend (para botón manual)
    */
   const refrescarPedidos = async () => {
     setLoading(true);
     try {
-      // Refrescar cada pedido activo
-      const pedidosActivos = pedidos.filter(
-        p => p.estadoBackend && p.estadoBackend !== 'entregado' && p.estadoBackend !== 'cancelado'
-      );
-      
-      for (const pedido of pedidosActivos) {
-        await consultarPedido(pedido.id);
+      // Verificar si hay usuario autenticado
+      const user = getUserData();
+      if (!user || !user.user_id) {
+        setLoading(false);
+        return;
       }
+
+      // Consultar todos los pedidos del usuario desde el backend
+      const response = await consultarPedidosAPI();
+      const pedidosBackend = response.pedidos || response.data?.pedidos || [];
+      
+      // Mapear pedidos del backend al formato del frontend
+      const pedidosMapeados = pedidosBackend.map(pedidoBackend => {
+        const pedidoMapeado = mapearPedido(pedidoBackend);
+        
+        // Buscar si ya existe este pedido en el estado local para preservar información adicional
+        const pedidoExistente = pedidos.find(p => p.id === pedidoMapeado.id);
+        
+        return {
+          ...pedidoMapeado,
+          items: pedidoBackend.productos?.map(prod => ({
+            id: prod.product_id || prod.producto_id,
+            nombre: prod.nombre || prod.nombre_producto || 'Producto sin nombre',
+            cantidad: prod.quantity || prod.cantidad || 1,
+            precio: prod.price || prod.precio || 0,
+            imagen: prod.imagen || 'https://via.placeholder.com/64'
+          })) || pedidoExistente?.items || [],
+          historialEstados: pedidoBackend.historialEstados || pedidoExistente?.historialEstados || [],
+          createdAt: pedidoBackend.fecha_inicio ? new Date(pedidoBackend.fecha_inicio).getTime() : (pedidoExistente?.createdAt || Date.now())
+        };
+      });
+      
+      setPedidos(pedidosMapeados);
     } catch (error) {
       console.error('Error refrescando pedidos:', error);
     } finally {
@@ -265,3 +336,6 @@ export const PedidosProvider = ({ children }) => {
     </PedidosContext.Provider>
   );
 };
+
+// Exportar al final
+export { usePedidos, PedidosProvider };
