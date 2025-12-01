@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePedidos } from '../context/PedidosContext';
+import { confirmarRecepcionAPI, getSelectedSede } from '../config/api';
 import {
   Clock,
   CheckCircle,
@@ -12,9 +13,17 @@ import {
   Store,
   ChevronLeft,
   RefreshCw,
+  CheckCircle2,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { formatSedeName } from '../lib/formatters';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '../components/ui/Dialog';
 
 const OrdenDetalle = () => {
   const { pedidoId } = useParams();
@@ -23,6 +32,9 @@ const OrdenDetalle = () => {
   const [pedido, setPedido] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actualizando, setActualizando] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
   // Función para actualizar manualmente
   const handleActualizarEstado = async () => {
@@ -37,6 +49,36 @@ const OrdenDetalle = () => {
       console.error('Error actualizando pedido:', error);
     } finally {
       setActualizando(false);
+    }
+  };
+
+  // Función para confirmar recepción del pedido
+  const handleConfirmarRecepcion = async () => {
+    if (!pedido) return;
+
+    setConfirmando(true);
+    try {
+      const tenantId = pedido.tenantId || getSelectedSede();
+      const resultado = await confirmarRecepcionAPI(pedidoId, tenantId);
+      
+      if (resultado && resultado.pedido) {
+        // Actualizar el pedido localmente
+        setPedido({
+          ...pedido,
+          estadoBackend: 'entregado',
+          estado: 'entregado',
+        });
+        setShowConfirmDialog(false);
+        setShowSuccessDialog(true);
+        
+        // Actualizar en el contexto
+        await consultarPedido(pedidoId);
+      }
+    } catch (error) {
+      console.error('Error confirmando recepción:', error);
+      alert('Error al confirmar recepción. Por favor, intenta nuevamente.');
+    } finally {
+      setConfirmando(false);
     }
   };
 
@@ -382,6 +424,45 @@ const OrdenDetalle = () => {
                 </div>
               </div>
 
+              {/* Botón para confirmar recepción si el pedido está en estados que permiten confirmación */}
+              {(pedido.estadoBackend === 'despachado' || 
+                pedido.estadoBackend === 'recogiendo' || 
+                pedido.estadoBackend === 'en_camino') && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-4">
+                    <p className="text-sm text-blue-800 font-lato font-bold mb-1">
+                      📦 Tu pedido está en camino
+                    </p>
+                    <p className="text-xs text-blue-600 font-lato">
+                      Cuando recibas tu pedido, confirma la recepción haciendo clic en el botón de abajo
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => setShowConfirmDialog(true)}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                    size="lg"
+                  >
+                    <CheckCircle2 className="w-5 h-5 mr-2" />
+                    Confirmar Recepción del Pedido
+                  </Button>
+                </div>
+              )}
+
+              {/* Si ya está entregado, mostrar mensaje */}
+              {pedido.estadoBackend === 'entregado' && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 text-center">
+                    <CheckCircle2 className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                    <p className="font-spartan font-bold text-green-800">
+                      Pedido Entregado
+                    </p>
+                    <p className="text-sm text-green-600 mt-1">
+                      Gracias por tu compra
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="mt-6 pt-6 border-t border-gray-200">
                 <Button
                   onClick={() => navigate('/menu')}
@@ -395,6 +476,81 @@ const OrdenDetalle = () => {
           </div>
         </div>
       </div>
+
+      {/* Dialog de confirmación */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl text-center">
+              ¿Confirmar Recepción?
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              ¿Has recibido tu pedido correctamente?
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 text-center">
+              Al confirmar, el pedido será marcado como entregado y finalizará el seguimiento.
+            </p>
+            
+            <div className="flex gap-3">
+              <Button
+                onClick={() => setShowConfirmDialog(false)}
+                variant="outline"
+                className="flex-1"
+                disabled={confirmando}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleConfirmarRecepcion}
+                className="flex-1 bg-green-600 hover:bg-green-700"
+                disabled={confirmando}
+              >
+                {confirmando ? 'Confirmando...' : 'Sí, Confirmar'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de éxito */}
+      <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto mb-4 w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+              <CheckCircle2 className="w-10 h-10 text-green-600" />
+            </div>
+            <DialogTitle className="text-2xl text-center">
+              ¡Pedido Recibido!
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              Tu pedido ha sido confirmado como entregado exitosamente.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 my-4">
+            <p className="font-lato text-center text-green-800 font-bold">
+              🎉 Gracias por tu compra
+            </p>
+            <p className="text-sm text-green-600 text-center mt-2">
+              Esperamos que disfrutes tu pedido
+            </p>
+          </div>
+
+          <Button
+            onClick={() => {
+              setShowSuccessDialog(false);
+              navigate('/menu');
+            }}
+            className="w-full"
+            size="lg"
+          >
+            Hacer Nuevo Pedido
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

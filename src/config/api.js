@@ -345,6 +345,27 @@ export async function consultarPedidoAPI(pedidoId) {
   return await handleResponse(response);
 }
 
+/**
+ * Confirmar recepción del pedido (cliente)
+ * Requiere autenticación
+ */
+export async function confirmarRecepcionAPI(pedidoId, tenantId) {
+  if (!isAuthenticated()) {
+    throw new Error('Debe iniciar sesión para confirmar recepción');
+  }
+  
+  const response = await fetch(`${BASE_URL}/pedido/confirmar-recepcion`, {
+    method: 'POST',
+    headers: getHeaders(true, tenantId), // Incluir autenticación y tenant_id
+    body: JSON.stringify({
+      pedido_id: pedidoId,
+      tenant_id: tenantId,
+    })
+  });
+  
+  return await handleResponse(response);
+}
+
 // ============================================================================
 // POLLING DE PEDIDOS
 // ============================================================================
