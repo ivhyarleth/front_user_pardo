@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
-import { PedidosProvider } from './context/PedidosContext';
+import { PedidosProvider, usePedidos } from './context/PedidosContext';
 import Header from './components/Header';
 import CartSidebar from './components/CartSidebar';
 import AddToCartToast from './components/AddToCartToast';
@@ -13,6 +13,38 @@ import Checkout from './pages/Checkout';
 import MisPedidos from './pages/MisPedidos';
 import Orden from './pages/Orden';
 import OrdenDetalle from './pages/OrdenDetalle';
+import { logoutAPI, isAuthenticated } from './config/api';
+
+// Componente para cargar pedidos cuando el usuario se autentica
+const PedidosLoader = ({ user }) => {
+  const { cargarPedidos, pedidos, loading } = usePedidos();
+  const location = useLocation();
+  const [lastUserId, setLastUserId] = useState(null);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+
+  useEffect(() => {
+    const currentUserId = user?.user_id;
+    
+    // Si el usuario cambió (login o cambio de usuario), cargar pedidos
+    if (user && currentUserId && currentUserId !== lastUserId && isAuthenticated()) {
+      setLastUserId(currentUserId);
+      setHasLoadedOnce(true);
+      cargarPedidos();
+      return;
+    }
+
+    // Si navegamos a una ruta que necesita pedidos y aún no se han cargado
+    if (user && isAuthenticated() && !hasLoadedOnce && !loading && pedidos.length === 0) {
+      const needsPedidos = location.pathname === '/home' || location.pathname === '/mis-pedidos' || location.pathname.startsWith('/orden');
+      if (needsPedidos) {
+        setHasLoadedOnce(true);
+        cargarPedidos();
+      }
+    }
+  }, [user, location.pathname, cargarPedidos, lastUserId, hasLoadedOnce, pedidos.length, loading]);
+
+  return null;
+};
 
 function App() {
   const [user, setUser] = useState(null);
@@ -30,11 +62,25 @@ function App() {
     localStorage.setItem('pardos-user', JSON.stringify(userData));
   };
 
-  const handleLogout = () => {
-    setUser(null);
-    localStorage.removeItem('pardos-user');
-    localStorage.removeItem('pardos-cart');
-    localStorage.removeItem('pardos-pedidos');
+  const handleLogout = async () => {
+    try {
+      // Llamar al backend para cerrar sesión
+      await logoutAPI();
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+      // Continuar con la limpieza local aunque falle el backend
+    } finally {
+      // Limpiar estado local
+      setUser(null);
+      localStorage.removeItem('pardos-user');
+      localStorage.removeItem('pardos-auth-token');
+      localStorage.removeItem('pardos-cart');
+      localStorage.removeItem('pardos-pedidos');
+      localStorage.removeItem('pardos-sede-selected');
+      
+      // Redirigir al login
+      window.location.href = '/login';
+    }
   };
 
   return (
@@ -43,6 +89,7 @@ function App() {
         <CartProvider>
           <div className="min-h-screen bg-pardos-cream">
             {user && <Header user={user} onLogout={handleLogout} />}
+            {user && <PedidosLoader user={user} />}
             <CartSidebar />
             <AddToCartToast />
             

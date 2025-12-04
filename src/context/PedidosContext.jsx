@@ -7,7 +7,8 @@ import {
   PedidoPoller,
   mapearPedido,
   mapearEstadoPedido,
-  getUserData
+  getUserData,
+  isAuthenticated
 } from '../config/api';
 
 const PedidosContext = createContext();
@@ -25,64 +26,75 @@ const PedidosProvider = ({ children }) => {
   const [pedidos, setPedidos] = useState([]);
   const [pollers, setPollers] = useState({}); // Map de pollers activos por pedido
   const [loading, setLoading] = useState(true); // Iniciar en true para mostrar carga inicial
+  const [isLoadingPedidos, setIsLoadingPedidos] = useState(false); // Bandera para evitar llamadas duplicadas
+
+  // Función para cargar pedidos del backend
+  const cargarPedidosDelBackend = async () => {
+    // Evitar llamadas duplicadas simultáneas
+    if (isLoadingPedidos) {
+      return;
+    }
+
+    try {
+      // Verificar autenticación usando la función isAuthenticated
+      if (!isAuthenticated()) {
+        setLoading(false);
+        return;
+      }
+
+      setIsLoadingPedidos(true);
+      setLoading(true);
+      
+      // Consultar todos los pedidos del usuario desde el backend
+      const response = await consultarPedidosAPI();
+      
+      const pedidosBackend = response.pedidos || response.data?.pedidos || [];
+      
+      // Mapear pedidos del backend al formato del frontend
+      const pedidosMapeados = pedidosBackend.map(pedidoBackend => {
+        const pedidoMapeado = mapearPedido(pedidoBackend);
+        
+        // Agregar información adicional
+        return {
+          ...pedidoMapeado,
+          items: pedidoBackend.productos?.map(prod => ({
+            id: prod.product_id || prod.producto_id,
+            nombre: prod.nombre || prod.nombre_producto || 'Producto sin nombre',
+            cantidad: prod.quantity || prod.cantidad || 1,
+            precio: prod.price || prod.precio || 0,
+            imagen: prod.imagen || 'https://via.placeholder.com/64'
+          })) || [],
+          historialEstados: pedidoBackend.historialEstados || [],
+          createdAt: pedidoBackend.fecha_inicio ? new Date(pedidoBackend.fecha_inicio).getTime() : Date.now()
+        };
+      });
+      
+      setPedidos(pedidosMapeados);
+    } catch (error) {
+      console.error('Error cargando pedidos del backend:', error);
+      
+      // Fallback: cargar desde localStorage si falla el backend
+      const savedPedidos = localStorage.getItem('pardos-pedidos');
+      if (savedPedidos) {
+        try {
+          const pedidosGuardados = JSON.parse(savedPedidos);
+          setPedidos(pedidosGuardados);
+        } catch (parseError) {
+          console.error('Error cargando pedidos guardados:', parseError);
+        }
+      }
+    } finally {
+      setLoading(false);
+      setIsLoadingPedidos(false);
+    }
+  };
 
   // Cargar pedidos del backend al iniciar
   useEffect(() => {
-    const cargarPedidosDelBackend = async () => {
-      try {
-        // Verificar si hay usuario autenticado
-        const user = getUserData();
-        if (!user || !user.user_id) {
-          setLoading(false);
-          return;
-        }
-
-        setLoading(true);
-        
-        // Consultar todos los pedidos del usuario desde el backend
-        const response = await consultarPedidosAPI();
-        const pedidosBackend = response.pedidos || response.data?.pedidos || [];
-        
-        // Mapear pedidos del backend al formato del frontend
-        const pedidosMapeados = pedidosBackend.map(pedidoBackend => {
-          const pedidoMapeado = mapearPedido(pedidoBackend);
-          
-          // Agregar información adicional
-          return {
-            ...pedidoMapeado,
-            items: pedidoBackend.productos?.map(prod => ({
-              id: prod.product_id || prod.producto_id,
-              nombre: prod.nombre || prod.nombre_producto || 'Producto sin nombre',
-              cantidad: prod.quantity || prod.cantidad || 1,
-              precio: prod.price || prod.precio || 0,
-              imagen: prod.imagen || 'https://via.placeholder.com/64'
-            })) || [],
-            historialEstados: pedidoBackend.historialEstados || [],
-            createdAt: pedidoBackend.fecha_inicio ? new Date(pedidoBackend.fecha_inicio).getTime() : Date.now()
-          };
-        });
-        
-        setPedidos(pedidosMapeados);
-      } catch (error) {
-        console.error('Error cargando pedidos del backend:', error);
-        
-        // Fallback: cargar desde localStorage si falla el backend
-        const savedPedidos = localStorage.getItem('pardos-pedidos');
-        if (savedPedidos) {
-          try {
-            const pedidosGuardados = JSON.parse(savedPedidos);
-            setPedidos(pedidosGuardados);
-          } catch (parseError) {
-            console.error('Error cargando pedidos guardados:', parseError);
-          }
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
     cargarPedidosDelBackend();
   }, []);
+
+  // Ya no necesitamos el intervalo aquí, PedidosLoader maneja la detección de login
 
   // Guardar pedidos en localStorage cuando cambien
   useEffect(() => {
@@ -327,7 +339,8 @@ const PedidosProvider = ({ children }) => {
     getProgresoPedido,
     iniciarPollingPedido,
     detenerPollingPedido,
-    refrescarPedidos // Nueva función para refrescar manualmente
+    refrescarPedidos, // Nueva función para refrescar manualmente
+    cargarPedidos: cargarPedidosDelBackend // Exponer función para cargar pedidos manualmente
   };
 
   return (
